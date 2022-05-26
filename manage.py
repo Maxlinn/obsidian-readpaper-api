@@ -21,12 +21,9 @@ class ReadpaperMarkdownManager(object):
         else:
             fm, content = dict(), str()
 
-        # 已经更新过信息
-        if 'readpaper' in fm: return
-
-            # 找到论文
+        # 找到论文
         if 'aliases' in fm:
-            name: str = fm['aliases'] or fm['aliases'][0]
+            name: str = fm['aliases']
         else:
             name: str = os.path.splitext(os.path.basename(fname))[0]
 
@@ -39,11 +36,18 @@ class ReadpaperMarkdownManager(object):
                 if name.lower() in k.lower(): return k
             return ''
 
-        name = find_name_inside()
-        if not name: return
+        name_found = find_name_inside()
+        if not name_found:
+            raise Exception(f"Not found paper name like {name}.")
+        name = name_found
 
-        fm.update({'aliases': name})
-        fm.update(self._parse_paper_desc(self._paper2desc[name]))
+        fm_update = self._parse_paper_desc(self._paper2desc[name])
+        # 更新aliases
+        fm_update['aliases'] = name
+        # tag需要手动merge，因为可能有一些本地的tag
+        if 'tags' in fm:
+            fm_update['tags'] = list(set(fm_update['tags']) | set(fm['tags']))
+        fm.update(fm_update)
 
         with open(fname, 'w', encoding='utf-8') as f:
             to_write = self._merge_frontmatter_with_content(fm, content)
@@ -96,9 +100,8 @@ class ReadpaperMarkdownManager(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--md', type=str, help='Location of the markdown file want to inject readpaper info with')
+    parser.add_argument('--md', type=str, help='Location of the markdown file want to inject readpaper info to.')
     args = parser.parse_args()
 
     m = ReadpaperMarkdownManager()
-    # m.manage_single_markdown_file(args.md)
-    m.manage_single_markdown_file('CPM.md')
+    m.manage_single_markdown_file(args.md)
